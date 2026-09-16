@@ -1,14 +1,18 @@
 const SVGRenderer = {
-    SCALE: 24,
+    SCALE: 22,
 
     render(data, options) {
+        if (!data || !data.back || !data.front) return;
+        
         this.clearLayers();
-        if (options.showGrid) this.drawBackgroundGrid(options.unit);
-        if (options.showBaseLines) this.drawBaseLines(data.depths);
+        const unit = (options && options.unit) ? options.unit : 'inch';
+        
+        if (!options || options.showGrid !== false) this.drawBackgroundGrid(unit);
+        if (!options || options.showBaseLines !== false) this.drawBaseLines(data.depths);
         
         this.drawPatternOutlines(data);
-        if (options.showSewingDarts) this.drawSewingDarts(data);
-        if (options.showSA) this.drawSeamAllowances(data);
+        if (!options || options.showSewingDarts !== false) this.drawSewingDarts(data);
+        if (options && options.showSA) this.drawSeamAllowances(data);
         
         this.drawCalibrationBox();
     },
@@ -23,20 +27,26 @@ const SVGRenderer = {
 
     drawBackgroundGrid(unit) {
         const layer = document.getElementById('layer-bg-grid');
-        const step = (unit === 'cm' ? 1.0 / 2.54 : 1.0) * this.SCALE;
+        if (!layer) return;
         
+        const step = (unit === 'cm' ? 1.0 / 2.54 : 1.0) * this.SCALE;
         let pathStr = '';
-        for (let x = 0; x < 1200; x += step) { pathStr += `M ${x} 0 V 900 `; }
-        for (let y = 0; y < 900; y += step) { pathStr += `M 0 ${y} H 1200 `; }
+        for (let x = 0; x < 1000; x += step) { pathStr += `M ${x} 0 V 800 `; }
+        for (let y = 0; y < 800; y += step) { pathStr += `M 0 ${y} H 1000 `; }
         
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', pathStr);
         path.setAttribute('class', 'grid-minor');
+        path.setAttribute('stroke', '#e2e8f0');
+        path.setAttribute('stroke-width', '0.5');
+        path.setAttribute('fill', 'none');
         layer.appendChild(path);
     },
 
     drawBaseLines(depths) {
         const layer = document.getElementById('layer-baselines');
+        if (!layer) return;
+        
         const lines = [
             { name: 'Nape Line', y: depths.dNape },
             { name: 'Bust Line', y: depths.dBustAdj },
@@ -48,19 +58,22 @@ const SVGRenderer = {
             const yPx = l.y * this.SCALE;
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', '20'); line.setAttribute('y1', yPx);
-            line.setAttribute('x2', '1150'); line.setAttribute('y2', yPx);
-            line.setAttribute('class', 'base-line');
+            line.setAttribute('x2', '950'); line.setAttribute('y2', yPx);
+            line.setAttribute('stroke', '#cbd5e1');
+            line.setAttribute('stroke-dasharray', '4 4');
             layer.appendChild(line);
         });
     },
 
     drawPatternOutlines(data) {
         const layer = document.getElementById('layer-net-pattern');
+        if (!layer) return;
+        
         const S = this.SCALE;
         const b = data.back;
         const f = data.front;
 
-        // BACK BLOCK PATH
+        // Curved Back Pattern
         const backPath = `M ${b.napePt.x * S} ${b.napePt.y * S} ` +
             `Q ${b.neckPt.x * S} ${b.napePt.y * S} ${b.neckPt.x * S} ${b.neckPt.y * S} ` +
             `L ${b.shoulderPt.x * S} ${b.shoulderPt.y * S} ` +
@@ -69,7 +82,7 @@ const SVGRenderer = {
             `L ${b.hipPt.x * S} ${data.depths.dHip * S} ` +
             `L ${b.centerLine * S} ${data.depths.dHip * S} Z`;
 
-        // FRONT BLOCK PATH
+        // Curved Front Pattern
         const frontPath = `M ${f.neckLowPt.x * S} ${f.neckLowPt.y * S} ` +
             `C ${f.neckLowPt.x * S} ${f.neckPt.y * S}, ${f.neckPt.x * S} ${f.neckLowPt.y * S}, ${f.neckPt.x * S} ${f.neckPt.y * S} ` +
             `L ${f.shoulderPt.x * S} ${f.shoulderPt.y * S} ` +
@@ -81,24 +94,28 @@ const SVGRenderer = {
         [backPath, frontPath].forEach(d => {
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', d);
-            path.setAttribute('class', 'pattern-net');
+            path.setAttribute('stroke', '#0f172a');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('fill', 'none');
             layer.appendChild(path);
         });
     },
 
     drawSewingDarts(data) {
         const layer = document.getElementById('layer-sewing-darts');
+        if (!layer) return;
+        
         const S = this.SCALE;
         const f = data.front;
         const b = data.back;
 
-        // Front Waist Fitting Dart Legs
+        // Front Waist Dart
         const frontDartStr = `M ${(f.apex.x - 0.625) * S} ${data.depths.dWaist * S} ` +
                              `L ${f.sewingApex.x * S} ${f.sewingApex.y * S} ` +
                              `L ${(f.apex.x + 0.625) * S} ${data.depths.dWaist * S} ` +
-                             `L ${f.apex.x * S} ${(data.depths.dWaist + 4.5) * S} Z`;
+                             `L ${f.apex.x * S} ${(data.depths.dWaist + 4.0) * S} Z`;
 
-        // Back Waist Fitting Dart Legs
+        // Back Waist Dart
         const backDartStr = `M ${(b.dart.x - b.dart.width / 2) * S} ${data.depths.dWaist * S} ` +
                             `L ${b.dart.x * S} ${b.dart.topY * S} ` +
                             `L ${(b.dart.x + b.dart.width / 2) * S} ${data.depths.dWaist * S} ` +
@@ -107,22 +124,29 @@ const SVGRenderer = {
         [frontDartStr, backDartStr].forEach(dStr => {
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', dStr);
-            path.setAttribute('class', 'sewing-dart');
+            path.setAttribute('stroke', '#2563eb');
+            path.setAttribute('stroke-width', '1.5');
+            path.setAttribute('stroke-dasharray', '3 3');
+            path.setAttribute('fill', 'none');
             layer.appendChild(path);
         });
 
-        // Front Apex Red Dot
+        // Apex Circle Marker
         const markerLayer = document.getElementById('layer-markers');
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', f.apex.x * S);
-        circle.setAttribute('cy', f.apex.y * S);
-        circle.setAttribute('r', 4);
-        circle.setAttribute('class', 'apex-marker');
-        markerLayer.appendChild(circle);
+        if (markerLayer) {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', f.apex.x * S);
+            circle.setAttribute('cy', f.apex.y * S);
+            circle.setAttribute('r', 4);
+            circle.setAttribute('fill', '#ef4444');
+            markerLayer.appendChild(circle);
+        }
     },
 
     drawSeamAllowances(data) {
         const layer = document.getElementById('layer-seam-allowance');
+        if (!layer) return;
+        
         const S = this.SCALE;
         const offset = 0.5 * S;
         const b = data.back;
@@ -134,25 +158,33 @@ const SVGRenderer = {
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', saStr);
-        path.setAttribute('class', 'seam-allowance');
+        path.setAttribute('stroke', '#94a3b8');
+        path.setAttribute('stroke-dasharray', '2 2');
+        path.setAttribute('fill', 'none');
         layer.appendChild(path);
     },
 
     drawCalibrationBox() {
         const layer = document.getElementById('layer-annotations');
+        if (!layer) return;
+        
         const S = this.SCALE;
         const boxSize = 4 * S;
-        const x = 750, y = 40;
+        const x = 680, y = 30;
 
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rect.setAttribute('x', x); rect.setAttribute('y', y);
         rect.setAttribute('width', boxSize); rect.setAttribute('height', boxSize);
-        rect.setAttribute('fill', 'none'); rect.setAttribute('stroke', '#000'); rect.setAttribute('stroke-width', '1.5');
+        rect.setAttribute('fill', 'none'); 
+        rect.setAttribute('stroke', '#000'); 
+        rect.setAttribute('stroke-width', '1');
         
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', x + 10); text.setAttribute('y', y + 30);
-        text.setAttribute('class', 'text-annotation');
-        text.textContent = 'PRINT TEST: 4" x 4" BOX';
+        text.setAttribute('x', x + 5); 
+        text.setAttribute('y', y + 20);
+        text.setAttribute('font-size', '10');
+        text.setAttribute('fill', '#000');
+        text.textContent = 'TEST BOX: 4" x 4"';
 
         layer.appendChild(rect);
         layer.appendChild(text);
