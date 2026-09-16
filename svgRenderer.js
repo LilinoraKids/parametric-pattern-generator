@@ -1,5 +1,5 @@
 const SVGRenderer = {
-    SCALE: 24, // Scale factor: 1 inch = 24 SVG display pixels
+    SCALE: 24,
 
     render(data, options) {
         this.clearLayers();
@@ -60,20 +60,23 @@ const SVGRenderer = {
         const b = data.back;
         const f = data.front;
 
-        // BACK PATTERN (Closed Path)
+        // BACK PATTERN (Anatomic curves using cubic Beziers)
         const backPathStr = `M ${b.napePt.x * S} ${b.napePt.y * S} ` +
-            `Q ${(b.napePt.x + b.neckPt.x)/2 * S} ${b.napePt.y * S} ${b.neckPt.x * S} ${b.neckPt.y * S} ` +
+            `Q ${b.neckPt.x * S} ${b.napePt.y * S} ${b.neckPt.x * S} ${b.neckPt.y * S} ` +
             `L ${b.shoulderPt.x * S} ${b.shoulderPt.y * S} ` +
-            `Q ${b.acrossPt.x * S} ${b.acrossPt.y * S} ${b.bustPt.x * S} ${b.bustPt.y * S} ` +
-            `L ${b.waistPt.x * S} ${b.waistPt.y * S} ` +
+            `C ${b.acrossPt.x * S} ${(b.shoulderPt.y + b.bustPt.y)/2 * S}, ${b.acrossPt.x * S} ${b.bustPt.y * S}, ${b.bustPt.x * S} ${b.bustPt.y * S} ` +
+            `Q ${(b.bustPt.x + b.waistPt.x)/2 * S} ${(b.bustPt.y + b.waistPt.y)/2 * S} ${b.waistPt.x * S} ${b.waistPt.y * S} ` +
             `L ${b.hipPt.x * S} ${data.depths.dHip * S} ` +
             `L ${b.centerLine * S} ${data.depths.dHip * S} Z`;
 
-        // FRONT PATTERN (Closed Path)
+        // FRONT PATTERN (Deep scooped neckline, shoulder bust dart seam, and armhole)
         const frontPathStr = `M ${f.neckLowPt.x * S} ${f.neckLowPt.y * S} ` +
-            `Q ${f.neckLowPt.x * S} ${f.neckPt.y * S} ${f.neckPt.x * S} ${f.neckPt.y * S} ` +
-            `L ${f.shoulderPt.x * S} ${f.shoulderPt.y * S} ` +
-            `Q ${f.acrossPt.x * S} ${f.acrossPt.y * S} ${f.bustPt.x * S} ${f.bustPt.y * S} ` +
+            `C ${f.neckLowPt.x * S} ${f.neckPt.y * S}, ${f.neckPt.x * S} ${f.neckLowPt.y * S}, ${f.neckPt.x * S} ${f.neckPt.y * S} ` +
+            `L ${f.shoulder1.x * S} ${f.shoulder1.y * S} ` +
+            `L ${f.apex.x * S} ${f.apex.y * S} ` + // Shoulder Bust Dart Leg 1
+            `L ${f.shoulder2.x * S} ${f.shoulder2.y * S} ` + // Shoulder Bust Dart Leg 2
+            `L ${f.shoulderEnd.x * S} ${f.shoulderEnd.y * S} ` +
+            `C ${(f.acrossPt.x - 0.5) * S} ${f.acrossPt.y * S}, ${f.acrossPt.x * S} ${f.bustPt.y * S}, ${f.bustPt.x * S} ${f.bustPt.y * S} ` +
             `L ${f.waistPt.x * S} ${f.waistPt.y * S} ` +
             `L ${f.hipPt.x * S} ${data.depths.dHip * S} ` +
             `L ${f.centerLine * S} ${data.depths.dHip * S} Z`;
@@ -90,18 +93,27 @@ const SVGRenderer = {
         const layer = document.getElementById('layer-sewing-darts');
         const S = this.SCALE;
         const f = data.front;
+        const b = data.back;
 
-        // Front Retracted Sewing Dart
-        const dartPathStr = `M ${(f.apex.x - 0.75) * S} ${(data.depths.dWaist) * S} ` +
-                            `L ${f.sewingApex.x * S} ${f.sewingApex.y * S} ` +
-                            `L ${(f.apex.x + 0.75) * S} ${(data.depths.dWaist) * S}`;
+        // Front Waist Retracted Sewing Dart
+        const frontWaistDart = `M ${(f.apex.x - 0.5) * S} ${(data.depths.dWaist) * S} ` +
+                               `L ${f.sewingApex.x * S} ${f.sewingApex.y * S} ` +
+                               `L ${(f.apex.x + 0.5) * S} ${(data.depths.dWaist) * S}`;
 
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', dartPathStr);
-        path.setAttribute('class', 'sewing-dart');
-        layer.appendChild(path);
+        // Back Vertical Waist Fitting Dart
+        const backWaistDart = `M ${(b.dart.x - b.dart.width / 2) * S} ${data.depths.dWaist * S} ` +
+                              `L ${b.dart.x * S} ${b.dart.topY * S} ` +
+                              `L ${(b.dart.x + b.dart.width / 2) * S} ${data.depths.dWaist * S} ` +
+                              `L ${b.dart.x * S} ${b.dart.bottomY * S} Z`;
 
-        // Target marker for True Apex
+        [frontWaistDart, backWaistDart].forEach(dStr => {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', dStr);
+            path.setAttribute('class', 'sewing-dart');
+            layer.appendChild(path);
+        });
+
+        // Target Marker at Front Bust Apex
         const markerLayer = document.getElementById('layer-markers');
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', f.apex.x * S);
@@ -114,7 +126,7 @@ const SVGRenderer = {
     drawSeamAllowances(data) {
         const layer = document.getElementById('layer-seam-allowance');
         const S = this.SCALE;
-        const offset = 0.5 * S; // 0.5 inch SA offset
+        const offset = 0.5 * S;
         const b = data.back;
 
         const saStr = `M ${(b.centerLine) * S - offset} ${(data.depths.dNape) * S - offset} ` +
@@ -131,7 +143,7 @@ const SVGRenderer = {
     drawCalibrationBox() {
         const layer = document.getElementById('layer-annotations');
         const S = this.SCALE;
-        const boxSize = 4 * S; // 4" x 4" Box
+        const boxSize = 4 * S;
         const x = 750, y = 40;
 
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -148,3 +160,4 @@ const SVGRenderer = {
         layer.appendChild(text);
     }
 };
+
