@@ -1,5 +1,4 @@
 const MeasurementsManager = {
-    // Map internal keys to friendly full labels
     definitions: {
         B: { label: 'Bust Circumference', default: 36.0 },
         W: { label: 'Waist Circumference', default: 28.0 },
@@ -21,6 +20,7 @@ const MeasurementsManager = {
 
     renderInputs() {
         const container = document.getElementById('measurements-inputs');
+        if (!container) return;
         container.innerHTML = '';
 
         for (const [key, item] of Object.entries(this.definitions)) {
@@ -37,16 +37,16 @@ const MeasurementsManager = {
 
     getValuesInInches() {
         const values = {};
-        const inputs = document.querySelectorAll('#measurements-inputs input');
-        
-        inputs.forEach(input => {
-            const key = input.dataset.key;
-            let val = parseFloat(input.value) || 0;
+        for (const [key, item] of Object.entries(this.definitions)) {
+            const input = document.querySelector(`#measurements-inputs input[data-key="${key}"]`);
+            let val = input ? parseFloat(input.value) : item.default;
+            if (isNaN(val) || val <= 0) val = item.default;
+
             if (this.currentUnit === 'cm') {
-                val = val / 2.54; // Convert to inches for underlying geometry engine
+                val = val / 2.54;
             }
             values[key] = val;
-        });
+        }
         return values;
     }
 };
