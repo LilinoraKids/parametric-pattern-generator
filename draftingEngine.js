@@ -1,46 +1,50 @@
 const DraftingEngine = {
-    calculatePattern(m, E) {
-        // Vertical Depths
+    calculatePattern(m, easeVal) {
+        // Safe fallbacks to prevent NaN errors
+        const B = m.B || 36.0;
+        const W = m.W || 28.0;
+        const H = m.H || 38.0;
+        const BW = m.BW || 16.5;
+        const WH = m.WH || 8.0;
+        const BWidth = m.BWidth || 14.0;
+        const CWidth = m.CWidth || 13.0;
+        const S = m.S || 5.0;
+        const E = typeof easeVal === 'number' ? easeVal : 1.0;
+
+        // Vertical Reference Depths (in inches)
         const dNape = 2.0;
-        const dBustBase = m.B <= 40.0 ? (0.5 * m.BW + 0.375) : (0.5 * m.BW + 0.625);
+        const dBustBase = B <= 40.0 ? (0.5 * BW + 0.375) : (0.5 * BW + 0.625);
         const deltaYScye = E > 1.25 ? 0.5 * (E - 1.25) : 0;
         const dBustAdj = dNape + dBustBase + deltaYScye;
-        const dWaist = dNape + m.BW;
-        const dHip = dWaist + m.WH;
+        const dWaist = dNape + BW;
+        const dHip = dWaist + WH;
 
-        // Proportional Dimensions
-        const BNW = ((m.B / 8.0) + 1.25) / 2.0;
+        // Neckline Dimensions
+        const BNW = ((B / 8.0) + 1.25) / 2.0;
         const FNW = BNW - 0.25;
-        const FND = BNW + 0.5;
+        const FND = BNW + 0.75;
 
-        // --- BACK BODICE (Origin X: 3.0) ---
-        const backOriginX = 3.0;
-        const backCenterLine = backOriginX;
+        // --- BACK BODICE ---
+        const backCenterLine = 3.0;
         const backNeckPt = { x: backCenterLine + BNW, y: dNape - 0.75 };
-        const backShoulderPt = { x: backNeckPt.x + m.S, y: dNape + 0.875 };
-        const backAcrossPt = { x: backCenterLine + (0.5 * m.BWidth), y: dNape + (dBustBase * 0.5) };
-        const backBustPt = { x: backCenterLine + (0.25 * m.B) + (0.25 * E), y: dBustAdj };
-        const backWaistPt = { x: backCenterLine + (0.25 * m.W) + (0.25 * E) + 1.0, y: dWaist };
-        const backHipPt = { x: backCenterLine + (0.25 * m.H) + (0.25 * E), y: dHip };
+        const backShoulderPt = { x: backNeckPt.x + S, y: dNape + 0.75 };
+        const backAcrossPt = { x: backCenterLine + (0.5 * BWidth), y: dNape + (dBustBase * 0.45) };
+        const backBustPt = { x: backCenterLine + (0.25 * B) + (0.25 * E), y: dBustAdj };
+        const backWaistPt = { x: backCenterLine + (0.25 * W) + (0.25 * E) + 1.0, y: dWaist };
+        const backHipPt = { x: backCenterLine + (0.25 * H) + (0.25 * E), y: dHip };
+        const backDartX = backCenterLine + (BNW * 1.15);
 
-        // Back Dart Setup
-        const backDartX = backCenterLine + (BNW * 1.1);
-
-        // --- FRONT BODICE (Origin X: 22.0) ---
-        const frontOriginX = 22.0;
-        const frontCenterLine = frontOriginX + (0.25 * m.B) + (0.25 * E);
-        
-        // Front Apex & Neck
-        const apexX = frontCenterLine - (0.25 * m.CWidth);
-        const apexY = dBustAdj + 1.5;
-        const sewingApexY = apexY + 0.8;
-
+        // --- FRONT BODICE ---
+        const frontCenterLine = 22.0;
         const frontNeckPt = { x: frontCenterLine - FNW, y: dNape };
-        const frontShoulderPt = { x: frontNeckPt.x - m.S, y: dNape + 1.25 };
-        const frontAcrossPt = { x: frontCenterLine - (0.5 * m.CWidth), y: dNape + (dBustBase * 0.5) };
-        const frontBustPt = { x: frontOriginX, y: dBustAdj };
-        const frontWaistPt = { x: frontOriginX + 0.75, y: dWaist };
-        const frontHipPt = { x: frontOriginX, y: dHip };
+        const frontShoulderPt = { x: frontNeckPt.x - S, y: dNape + 1.25 };
+        const frontAcrossPt = { x: frontCenterLine - (0.5 * CWidth), y: dNape + (dBustBase * 0.45) };
+        const frontBustPt = { x: frontCenterLine - ((0.25 * B) + (0.25 * E)), y: dBustAdj };
+        const frontWaistPt = { x: frontCenterLine - ((0.25 * W) + (0.25 * E) + 1.0), y: dWaist };
+        const frontHipPt = { x: frontCenterLine - ((0.25 * H) + (0.25 * E)), y: dHip };
+
+        const apexX = frontCenterLine - (0.25 * CWidth);
+        const apexY = dBustAdj + 1.25;
 
         return {
             depths: { dNape, dBustAdj, dWaist, dHip },
@@ -66,7 +70,7 @@ const DraftingEngine = {
                 waistPt: frontWaistPt,
                 hipPt: frontHipPt,
                 apex: { x: apexX, y: apexY },
-                sewingApex: { x: apexX, y: sewingApexY }
+                sewingApex: { x: apexX, y: apexY + 0.8 }
             }
         };
     }
